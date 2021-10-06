@@ -104,9 +104,7 @@ def SQL_load_to_postgre(
             port=conn_settings['port'], 
             dbname=conn_settings['db'], 
             user=conn_settings['user'], 
-            password=conn_settings['AWS_POSTGRES_PASSWORD'],
-            sslmode=conn_settings['sslmode'], 
-            sslrootcert=conn_settings['sslrootcert'])
+            password=conn_settings['password'],)
         db_cursor = db_conn.cursor()
     except Exception as e:
         return f'connection error {e}'
@@ -136,10 +134,10 @@ def SQL_load_to_postgre(
         except Exception as e:
             return f'sql delete failed {e}'
     
-    try:
-        file_obj.seek(0)
-    except Exception as e:
-        return f'Something wrong with the file_obj {e}'
+    # try:
+    #     file_obj.seek(0)
+    # except Exception as e:
+    #     return f'Something wrong with the file_obj {e}'
 
     if header_row < -1 or field_type_row < -1 or header_row <= field_type_row:
         return f'header_row [{header_row}] or field_type_row [{field_type_row}] is < -1 or header_row <= datatype_row, so nothing was done'
@@ -155,7 +153,11 @@ def SQL_load_to_postgre(
     df = pd.read_excel(file_obj, sheet_name=sheet_name)
     
     # force all column names to lowercase
-    df.columns = map(str.lower, df.columns)
+    # df.columns = map(str.lower, df.columns)
+    
+    df.rename(columns=str.lower)
+    df.rename(columns=lambda x: str.replace(x,"(",""))
+    df.rename(columns=lambda x: str.replace(x,")",""))
 
     # rename columns
     df.rename(columns = field_names, inplace=True)
@@ -201,51 +203,3 @@ def SQL_load_to_postgre(
 
     
 
-if __name__ == '__main__':
-    
-    sfsession = ShareFileSession(SHAREFILE_OPTIONS)
-    path = r"Z:\Shared With Me\Marketing\Proposals\Seattle City Light\2107 (Small Business Energy Solutions)\Bid\Reference\SBW DI"
-
-    # filename = r'\PSE PreRinse Sites (select cols).csv'
-    # filename = r'\PSE PreRinse Heads (select cols).csv'
-    # filename = r'\zips.csv'
-    filename = r'\PSE PreRinse Program thru 5-31-13.xlsx'
-    filepath = path + filename
-    sfitem = sfsession.get_item_by_local_favorites_path(filepath)
-    sfitem.download_io()
-
-
-    # PSE pre-rinse site, model for site level
-    return_value = SQL_load_to_postgre(
-        file_obj=sfitem.io_data,
-        sheet_name='Site',
-        header_row=0,
-        field_type_row=-1,
-        field_names={},
-        field_types={},
-        primary_key_fields=['siteid'],
-        join_fields=[],
-        index_fields=[''], 
-        date_fields=[],
-        null_values={},
-        table_name = 'test.site', 
-        conn_settings = AWS_POSTGRES_OPTIONS_SBWTEST, 
-        table_action=load_type.OVERWRITE)
-
-
-
-    # df = pd.read_excel(filepath,sheet_name='Site')
-    # filename = r'\PSE PreRinse Program thru 5-31-13.json'
-    # filepath = path + filename
-    # df.to_json(filepath)
-
-    # sfitem.io_data.seek(0)
-    # file_obj = io.StringIO
-    # json.dump(sfitem.io_data,file_obj)
-    # sfsession.put_item_by_local_z_path(filepath,file_obj)
-    # # sfsession.upload_file(sfitem.data['Parent']['Id'], fname, sfitem.io_data)
-    # # # sfsession.put_item_by_local_z_path
-
-    print(return_value)
-
-    #repeat calls with each posssible error return
